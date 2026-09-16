@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configmap.yaml
+  - secrets.yaml
+  - serviceaccounts.yaml
+  - rbac.yaml
+  - deployments.yaml
+  - hpa.yaml
+  - poddisruptionbudgets.yaml
+  - networkpolicies.yaml
+  - ingress.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: shopsphere

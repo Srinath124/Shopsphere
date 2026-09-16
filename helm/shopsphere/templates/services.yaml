@@ -1,0 +1,36 @@
+{{/*
+Helm Services template for ShopSphere.
+Renders one ClusterIP Service per enabled microservice.
+Separated from deployments.yaml for clarity and independent templating.
+*/}}
+{{- $root := . -}}
+{{- $services := dict
+  "auth-service"         .Values.services.authService
+  "product-service"      .Values.services.productService
+  "cart-service"         .Values.services.cartService
+  "order-service"        .Values.services.orderService
+  "inventory-service"    .Values.services.inventoryService
+  "notification-service" .Values.services.notificationService
+  "frontend"             .Values.services.frontend
+-}}
+{{- range $name, $cfg := $services }}
+{{- if $cfg.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    app: {{ $name }}
+    {{- include "shopsphere.labels" $root | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ $cfg.port }}
+      targetPort: {{ $cfg.port }}
+      name: http
+      protocol: TCP
+  selector:
+    app: {{ $name }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,2 @@
+aws_region  = "us-east-1"
+db_password = "REPLACE_WITH_SECURE_VAULT_INJECTED_PASSWORD"

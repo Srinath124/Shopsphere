@@ -1,0 +1,13 @@
+---
+# Master playbook provisioning the ShopSphere cluster nodes
+- name: Apply base system configuration and security hardening
+  hosts: all
+  roles:
+    - common
+    - security
+    - monitoring_agent
+
+- name: Provision container runtime on compute hosts
+  hosts: k8s_cluster
+  roles:
+    - docker

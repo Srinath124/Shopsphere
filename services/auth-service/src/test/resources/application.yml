@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/auth_db_test
+    username: shopsphere
+    password: testpassword
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+app:
+  jwt:
+    secret: dGVzdFNlY3JldEtleUZvclVuaXRUZXN0c09ubHlOb3RGb3JQcm9kdWN0aW9u
+    expiration-ms: 3600000
+    refresh-expiration-ms: 86400000
+
+logging:
+  level:
+    com.shopsphere: DEBUG
+    org.springframework.security: WARN

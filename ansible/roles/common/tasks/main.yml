@@ -1,0 +1,39 @@
+---
+- name: Update apt cache and upgrade system packages
+  apt:
+    update_cache: yes
+    upgrade: dist
+    cache_valid_time: 3600
+
+- name: Install system utility packages
+  apt:
+    name:
+      - curl
+      - wget
+      - git
+      - htop
+      - jq
+      - unzip
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - net-tools
+      - unattended-upgrades
+    state: present
+
+- name: Set system timezone to UTC
+  timezone:
+    name: UTC
+
+- name: Configure kernel sysctl settings for high throughput & k8s
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  loop:
+    - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+    - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+    - { name: 'net.ipv4.ip_forward', value: '1' }
+    - { name: 'vm.max_map_count', value: '262144' }
+    - { name: 'fs.file-max', value: '2097152' }

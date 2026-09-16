@@ -1,0 +1,48 @@
+---
+- name: Install security packages (UFW, fail2ban)
+  apt:
+    name:
+      - ufw
+      - fail2ban
+    state: present
+
+- name: Configure UFW default policies
+  ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: 'incoming', policy: 'deny' }
+    - { direction: 'outgoing', policy: 'allow' }
+
+- name: Allow SSH on port 22
+  ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+
+- name: Allow HTTP and HTTPS
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - '80'
+    - '443'
+
+- name: Enable UFW firewall
+  ufw:
+    state: enabled
+
+- name: Ensure fail2ban service is enabled and started
+  systemd:
+    name: fail2ban
+    state: started
+    enabled: yes
+
+- name: Harden SSH configuration (disable root password login)
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?PermitRootLogin"
+    line: "PermitRootLogin prohibit-password"
+    state: present
+  notify: restart sshd

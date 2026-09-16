@@ -1,0 +1,83 @@
+name: Continuous Integration (CI)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-services:
+    name: Backend CI (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - auth-service
+          - product-service
+          - cart-service
+          - inventory-service
+          - order-service
+          - notification-service
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run Maven Tests & Package
+        working-directory: ./services/${{ matrix.service }}
+        run: |
+          mvn clean test package -Dtestcontainers.reuse.enable=true
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-${{ matrix.service }}
+          path: ./services/${{ matrix.service }}/target/surefire-reports/
+
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ./frontend/package.json
+
+      - name: Install Dependencies & Typecheck & Build
+        working-directory: ./frontend
+        run: |
+          npm ci || npm install
+          npm run build
+
+  docker-verification:
+    name: Docker Build Verification
+    needs: [backend-services, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose Config
+        run: |
+          docker compose config -q
+          docker compose -f docker-compose.dev.yml config -q
+          docker compose -f docker-compose.observability.yml config -q

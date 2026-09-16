@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/inventory_db_test
+    username: shopsphere
+    password: testpassword
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+app:
+  jwt:
+    secret: dGVzdFNlY3JldEtleUZvclVuaXRUZXN0c09ubHlOb3RGb3JQcm9kdWN0aW9u
+
+logging:
+  level:
+    com.shopsphere: DEBUG

@@ -1,0 +1,53 @@
+# values-prod.yaml — ShopSphere Production Environment
+# Overrides base values.yaml for production deployment.
+
+global:
+  environment: "prod"
+  imageTag: "prod-stable"
+
+networkPolicy:
+  enabled: true
+  monitoringNamespace: "monitoring"
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 15
+  targetCPUUtilizationPercentage: 65
+  targetMemoryUtilizationPercentage: 75
+
+services:
+  authService:
+    replicaCount: 3
+    pdb:
+      minAvailable: 2
+
+  productService:
+    replicaCount: 3
+    pdb:
+      minAvailable: 2
+
+  cartService:
+    replicaCount: 3
+    pdb:
+      minAvailable: 2
+
+  orderService:
+    replicaCount: 4
+    pdb:
+      minAvailable: 2
+
+  inventoryService:
+    replicaCount: 4
+    pdb:
+      minAvailable: 2
+
+  notificationService:
+    replicaCount: 3
+    pdb:
+      minAvailable: 2
+
+  frontend:
+    replicaCount: 3
+    pdb:
+      minAvailable: 2

@@ -1,0 +1,270 @@
+# =============================================================================
+# NetworkPolicies for ShopSphere
+#
+# Default deny-all ingress, then selectively allow:
+#   - Frontend → auth, product, cart, order
+#   - order-service → inventory-service, notification-service (via RabbitMQ)
+#   - All services → RabbitMQ (namespace-local)
+#   - All services → PostgreSQL (namespace-local)
+#   - All services → Redis (namespace-local)
+#   - Prometheus scraping from monitoring namespace
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Default: deny all ingress within the namespace
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  labels:
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+
+---
+# ---------------------------------------------------------------------------
+# auth-service: Accept traffic from ingress-nginx + all backend services
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-auth-service
+  labels:
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  podSelector:
+    matchLabels:
+      app: auth-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app: order-service
+        - podSelector:
+            matchLabels:
+              app: product-service
+        - podSelector:
+            matchLabels:
+              app: cart-service
+        - podSelector:
+            matchLabels:
+              app: inventory-service
+        - podSelector:
+            matchLabels:
+              app: notification-service
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - protocol: TCP
+          port: 8081
+
+---
+# ---------------------------------------------------------------------------
+# product-service: Accept from ingress-nginx and frontend
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-product-service
+  labels:
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  podSelector:
+    matchLabels:
+      app: product-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app: frontend
+        - podSelector:
+            matchLabels:
+              app: order-service
+        - podSelector:
+            matchLabels:
+              app: cart-service
+      ports:
+        - protocol: TCP
+          port: 8082
+
+---
+# ---------------------------------------------------------------------------
+# cart-service: Accept from ingress-nginx and frontend
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cart-service
+  labels:
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  podSelector:
+    matchLabels:
+      app: cart-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - protocol: TCP
+          port: 8083
+
+---
+# ---------------------------------------------------------------------------
+# order-service: Accept from ingress-nginx and frontend
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-order-service
+  labels:
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  podSelector:
+    matchLabels:
+      app: order-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - protocol: TCP
+          port: 8084
+
+---
+# ---------------------------------------------------------------------------
+# inventory-service: Accept from order-service and ingress-nginx
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-inventory-service
+  labels:
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  podSelector:
+    matchLabels:
+      app: inventory-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: order-service
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8085
+
+---
+# ---------------------------------------------------------------------------
+# notification-service: Accept only from RabbitMQ consumer (internal)
+# No direct HTTP ingress needed; it consumes queue events
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-notification-service
+  labels:
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  podSelector:
+    matchLabels:
+      app: notification-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8086
+
+---
+# ---------------------------------------------------------------------------
+# frontend: Accept from ingress-nginx only
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend
+  labels:
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 80
+
+---
+# ---------------------------------------------------------------------------
+# Allow Prometheus scraping from the monitoring namespace
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  labels:
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8081
+        - protocol: TCP
+          port: 8082
+        - protocol: TCP
+          port: 8083
+        - protocol: TCP
+          port: 8084
+        - protocol: TCP
+          port: 8085
+        - protocol: TCP
+          port: 8086

@@ -1,0 +1,45 @@
+package com.shopsphere.inventory.security;
+
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+
+@Slf4j
+@Component
+public class JwtTokenProvider {
+
+    @Value("${app.jwt.secret}")
+    private String jwtSecret;
+
+    private SecretKey getSigningKey() {
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+    }
+
+    public String extractUsername(String token) {
+        return extractAllClaims(token).getSubject();
+    }
+
+    public String extractRole(String token) {
+        return extractAllClaims(token).get("role", String.class);
+    }
+
+    public boolean isTokenValid(String token) {
+        try {
+            extractAllClaims(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            log.warn("Invalid JWT: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private Claims extractAllClaims(String token) {
+        return Jwts.parser().verifyWith(getSigningKey()).build()
+                .parseSignedClaims(token).getPayload();
+    }
+}

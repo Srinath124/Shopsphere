@@ -1,0 +1,32 @@
+{{/*
+Helm PodDisruptionBudget template for ShopSphere.
+Renders PDBs for all enabled services to ensure high availability
+during voluntary disruptions (node drains, rolling updates).
+*/}}
+{{- $root := . }}
+{{- $services := dict
+  "auth-service"         .Values.services.authService
+  "product-service"      .Values.services.productService
+  "cart-service"         .Values.services.cartService
+  "order-service"        .Values.services.orderService
+  "inventory-service"    .Values.services.inventoryService
+  "notification-service" .Values.services.notificationService
+  "frontend"             .Values.services.frontend
+}}
+{{- range $name, $cfg := $services }}
+{{- if $cfg.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-pdb
+  labels:
+    app: {{ $name }}
+    {{- include "shopsphere.labels" $root | nindent 4 }}
+spec:
+  minAvailable: {{ $cfg.pdb.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+{{- end }}
+{{- end }}

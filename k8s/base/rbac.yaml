@@ -1,0 +1,126 @@
+# =============================================================================
+# RBAC — Roles and RoleBindings for ShopSphere microservices
+# Services only need read access to ConfigMaps and Secrets in their namespace.
+# =============================================================================
+
+# Role: Allow reading ConfigMaps and Secrets (needed by Spring Boot actuator,
+#        config refresh, etc. when running in Kubernetes-native mode)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: shopsphere-service-role
+  labels:
+    app.kubernetes.io/part-of: shopsphere
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+# RoleBinding: Bind each service's ServiceAccount to the shared role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: auth-service-binding
+  labels:
+    app: auth-service
+    app.kubernetes.io/part-of: shopsphere
+subjects:
+  - kind: ServiceAccount
+    name: auth-service
+roleRef:
+  kind: Role
+  name: shopsphere-service-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: product-service-binding
+  labels:
+    app: product-service
+    app.kubernetes.io/part-of: shopsphere
+subjects:
+  - kind: ServiceAccount
+    name: product-service
+roleRef:
+  kind: Role
+  name: shopsphere-service-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cart-service-binding
+  labels:
+    app: cart-service
+    app.kubernetes.io/part-of: shopsphere
+subjects:
+  - kind: ServiceAccount
+    name: cart-service
+roleRef:
+  kind: Role
+  name: shopsphere-service-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: order-service-binding
+  labels:
+    app: order-service
+    app.kubernetes.io/part-of: shopsphere
+subjects:
+  - kind: ServiceAccount
+    name: order-service
+roleRef:
+  kind: Role
+  name: shopsphere-service-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: inventory-service-binding
+  labels:
+    app: inventory-service
+    app.kubernetes.io/part-of: shopsphere
+subjects:
+  - kind: ServiceAccount
+    name: inventory-service
+roleRef:
+  kind: Role
+  name: shopsphere-service-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: notification-service-binding
+  labels:
+    app: notification-service
+    app.kubernetes.io/part-of: shopsphere
+subjects:
+  - kind: ServiceAccount
+    name: notification-service
+roleRef:
+  kind: Role
+  name: shopsphere-service-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: frontend-binding
+  labels:
+    app: frontend
+    app.kubernetes.io/part-of: shopsphere
+subjects:
+  - kind: ServiceAccount
+    name: frontend
+roleRef:
+  kind: Role
+  name: shopsphere-service-role
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,48 @@
+# values-dev.yaml — ShopSphere Development Environment
+# Overrides base values.yaml for local development.
+
+global:
+  environment: "dev"
+  imageTag: "dev-latest"
+
+networkPolicy:
+  enabled: false   # Disable in dev for easier local debugging
+
+autoscaling:
+  enabled: false
+
+services:
+  authService:
+    replicaCount: 1
+    pdb:
+      minAvailable: 0    # Allow full disruption in dev
+
+  productService:
+    replicaCount: 1
+    pdb:
+      minAvailable: 0
+
+  cartService:
+    replicaCount: 1
+    pdb:
+      minAvailable: 0
+
+  orderService:
+    replicaCount: 1
+    pdb:
+      minAvailable: 0
+
+  inventoryService:
+    replicaCount: 1
+    pdb:
+      minAvailable: 0
+
+  notificationService:
+    replicaCount: 1
+    pdb:
+      minAvailable: 0
+
+  frontend:
+    replicaCount: 1
+    pdb:
+      minAvailable: 0

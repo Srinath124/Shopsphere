@@ -1,0 +1,139 @@
+global:
+  environment: "dev"
+  imageRegistry: "ghcr.io/your-org"
+  imageTag: "latest"
+  imagePullPolicy: "IfNotPresent"
+
+database:
+  host: "postgres"
+  port: 5432
+  user: "shopsphere"
+  password: "changeme_strong_password_here"
+
+redis:
+  host: "redis"
+  port: 6379
+
+rabbitmq:
+  host: "rabbitmq"
+  port: 5672
+  user: "guest"
+  password: "guest"
+
+security:
+  jwtSecret: "bXlTdXBlclNlY3JldEtleUZvckpXVEF1dGhlbnRpY2F0aW9uU2hvcFNwaGVyZUNhcHN0b25lUHJvamVjdA=="
+
+networkPolicy:
+  enabled: true
+  monitoringNamespace: "monitoring"
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+  host: "shopsphere.local"
+
+services:
+  authService:
+    enabled: true
+    replicaCount: 2
+    port: 8081
+    resources:
+      requests:
+        cpu: 200m
+        memory: 384Mi
+      limits:
+        cpu: 1000m
+        memory: 768Mi
+    pdb:
+      minAvailable: 1
+
+  productService:
+    enabled: true
+    replicaCount: 2
+    port: 8082
+    resources:
+      requests:
+        cpu: 200m
+        memory: 384Mi
+      limits:
+        cpu: 1000m
+        memory: 768Mi
+    pdb:
+      minAvailable: 1
+
+  cartService:
+    enabled: true
+    replicaCount: 2
+    port: 8083
+    resources:
+      requests:
+        cpu: 200m
+        memory: 384Mi
+      limits:
+        cpu: 1000m
+        memory: 768Mi
+    pdb:
+      minAvailable: 1
+
+  orderService:
+    enabled: true
+    replicaCount: 2
+    port: 8084
+    resources:
+      requests:
+        cpu: 200m
+        memory: 384Mi
+      limits:
+        cpu: 1000m
+        memory: 768Mi
+    pdb:
+      minAvailable: 1
+
+  inventoryService:
+    enabled: true
+    replicaCount: 2
+    port: 8085
+    resources:
+      requests:
+        cpu: 200m
+        memory: 384Mi
+      limits:
+        cpu: 1000m
+        memory: 768Mi
+    pdb:
+      minAvailable: 1
+
+  notificationService:
+    enabled: true
+    replicaCount: 2
+    port: 8086
+    resources:
+      requests:
+        cpu: 200m
+        memory: 384Mi
+      limits:
+        cpu: 1000m
+        memory: 768Mi
+    pdb:
+      minAvailable: 1
+
+  frontend:
+    enabled: true
+    replicaCount: 2
+    port: 80
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+    pdb:
+      minAvailable: 1

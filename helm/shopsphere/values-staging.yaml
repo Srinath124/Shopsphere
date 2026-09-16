@@ -1,0 +1,53 @@
+# values-staging.yaml — ShopSphere Staging Environment
+# Inherits all base values.yaml defaults; overrides listed below.
+
+global:
+  environment: "staging"
+  imageTag: "staging"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 65
+  targetMemoryUtilizationPercentage: 75
+
+networkPolicy:
+  enabled: true
+  monitoringNamespace: "monitoring"
+
+services:
+  authService:
+    replicaCount: 2
+    pdb:
+      minAvailable: 1
+
+  productService:
+    replicaCount: 2
+    pdb:
+      minAvailable: 1
+
+  cartService:
+    replicaCount: 2
+    pdb:
+      minAvailable: 1
+
+  orderService:
+    replicaCount: 2
+    pdb:
+      minAvailable: 1
+
+  inventoryService:
+    replicaCount: 2
+    pdb:
+      minAvailable: 1
+
+  notificationService:
+    replicaCount: 2
+    pdb:
+      minAvailable: 1
+
+  frontend:
+    replicaCount: 2
+    pdb:
+      minAvailable: 1

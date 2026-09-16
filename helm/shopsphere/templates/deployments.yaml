@@ -1,0 +1,94 @@
+{{/*
+Helm Deployments template for ShopSphere.
+Renders Deployment resources for each enabled microservice with:
+  - SecurityContext (runAsNonRoot, readOnlyRootFilesystem, drop ALL caps)
+  - StartupProbe + LivenessProbe + ReadinessProbe
+  - ServiceAccountName reference
+  - Resource requests & limits
+  - tmpfs volumes for JVM temp directories
+*/}}
+{{- $root := . -}}
+{{- $services := dict
+  "auth-service"         .Values.services.authService
+  "product-service"      .Values.services.productService
+  "cart-service"         .Values.services.cartService
+  "order-service"        .Values.services.orderService
+  "inventory-service"    .Values.services.inventoryService
+  "notification-service" .Values.services.notificationService
+  "frontend"             .Values.services.frontend
+-}}
+{{- range $name, $cfg := $services }}
+{{- if $cfg.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    app: {{ $name }}
+    {{- include "shopsphere.labels" $root | nindent 4 }}
+spec:
+  replicas: {{ $cfg.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+        {{- include "shopsphere.labels" $root | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $name }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: {{ $name }}
+          image: "{{ $root.Values.global.imageRegistry }}/{{ $name }}:{{ $root.Values.global.imageTag }}"
+          imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ $cfg.port }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: {{ include "shopsphere.fullname" $root }}-config
+            - secretRef:
+                name: {{ include "shopsphere.fullname" $root }}-secrets
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+          resources:
+            {{- toYaml $cfg.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ $cfg.port }}
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: {{ $cfg.port }}
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: {{ $cfg.port }}
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+{{- end }}
+{{- end }}

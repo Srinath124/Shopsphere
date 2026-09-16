@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: shopsphere-staging
+
+bases:
+  - ../../base
+
+resources:
+  - hpa-staging.yaml
+
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  - target:
+      kind: PodDisruptionBudget
+    patch: |-
+      - op: replace
+        path: /spec/minAvailable
+        value: 1
+
+images:
+  - name: ghcr.io/your-org/auth-service
+    newTag: staging
+  - name: ghcr.io/your-org/product-service
+    newTag: staging
+  - name: ghcr.io/your-org/cart-service
+    newTag: staging
+  - name: ghcr.io/your-org/order-service
+    newTag: staging
+  - name: ghcr.io/your-org/inventory-service
+    newTag: staging
+  - name: ghcr.io/your-org/notification-service
+    newTag: staging
+  - name: ghcr.io/your-org/frontend
+    newTag: staging

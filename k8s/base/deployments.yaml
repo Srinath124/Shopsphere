@@ -1,0 +1,825 @@
+# =============================================================================
+# ShopSphere — Kubernetes Deployments + Services (Base)
+# Features:
+#   - SecurityContext (runAsNonRoot, readOnlyRootFilesystem, drop ALL caps)
+#   - StartupProbe + LivenessProbe + ReadinessProbe
+#   - ServiceAccount per microservice
+#   - Resource requests & limits
+#   - tmpfs volumes for writable temp dirs required by JVM
+# =============================================================================
+
+# ── Shared Security Context (applied to every Spring Boot container) ─────────
+# runAsNonRoot: true          → container cannot run as root
+# runAsUser: 65534            → "nobody" user
+# readOnlyRootFilesystem: true → immutable root fs; /tmp mounted as tmpfs
+# allowPrivilegeEscalation: false
+# capabilities.drop: ["ALL"]  → no Linux capabilities
+
+# =============================================================================
+# Auth Service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  labels:
+    app: auth-service
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+        app.kubernetes.io/part-of: shopsphere
+    spec:
+      serviceAccountName: auth-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: auth-service
+          image: ghcr.io/your-org/auth-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+              name: http
+          envFrom:
+            - configMapRef:
+                name: shopsphere-config
+            - secretRef:
+                name: shopsphere-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8081"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://$(POSTGRES_HOST):$(POSTGRES_PORT)/auth_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: POSTGRES_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: JWT_SECRET
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            initialDelaySeconds: 0
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  labels:
+    app: auth-service
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8081
+      targetPort: 8081
+      name: http
+  selector:
+    app: auth-service
+
+# =============================================================================
+# Product Service
+# =============================================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  labels:
+    app: product-service
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+        app.kubernetes.io/part-of: shopsphere
+    spec:
+      serviceAccountName: product-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: product-service
+          image: ghcr.io/your-org/product-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+              name: http
+          envFrom:
+            - configMapRef:
+                name: shopsphere-config
+            - secretRef:
+                name: shopsphere-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8082"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://$(POSTGRES_HOST):$(POSTGRES_PORT)/product_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: POSTGRES_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: JWT_SECRET
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8082
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  labels:
+    app: product-service
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8082
+      targetPort: 8082
+      name: http
+  selector:
+    app: product-service
+
+# =============================================================================
+# Cart Service
+# =============================================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart-service
+  labels:
+    app: cart-service
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cart-service
+  template:
+    metadata:
+      labels:
+        app: cart-service
+        app.kubernetes.io/part-of: shopsphere
+    spec:
+      serviceAccountName: cart-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cart-service
+          image: ghcr.io/your-org/cart-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
+              name: http
+          envFrom:
+            - configMapRef:
+                name: shopsphere-config
+            - secretRef:
+                name: shopsphere-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8083"
+            - name: SPRING_DATA_REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: shopsphere-config
+                  key: REDIS_HOST
+            - name: SPRING_DATA_REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: shopsphere-config
+                  key: REDIS_PORT
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: JWT_SECRET
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8083
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cart-service
+  labels:
+    app: cart-service
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8083
+      targetPort: 8083
+      name: http
+  selector:
+    app: cart-service
+
+# =============================================================================
+# Order Service
+# =============================================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  labels:
+    app: order-service
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+        app.kubernetes.io/part-of: shopsphere
+    spec:
+      serviceAccountName: order-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: order-service
+          image: ghcr.io/your-org/order-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8084
+              name: http
+          envFrom:
+            - configMapRef:
+                name: shopsphere-config
+            - secretRef:
+                name: shopsphere-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8084"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://$(POSTGRES_HOST):$(POSTGRES_PORT)/order_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: POSTGRES_PASSWORD
+            - name: SPRING_RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: RABBITMQ_USER
+            - name: SPRING_RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: RABBITMQ_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: JWT_SECRET
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8084
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8084
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8084
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  labels:
+    app: order-service
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8084
+      targetPort: 8084
+      name: http
+  selector:
+    app: order-service
+
+# =============================================================================
+# Inventory Service
+# =============================================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  labels:
+    app: inventory-service
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+        app.kubernetes.io/part-of: shopsphere
+    spec:
+      serviceAccountName: inventory-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: inventory-service
+          image: ghcr.io/your-org/inventory-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8085
+              name: http
+          envFrom:
+            - configMapRef:
+                name: shopsphere-config
+            - secretRef:
+                name: shopsphere-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8085"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://$(POSTGRES_HOST):$(POSTGRES_PORT)/inventory_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: POSTGRES_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: JWT_SECRET
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8085
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8085
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8085
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  labels:
+    app: inventory-service
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8085
+      targetPort: 8085
+      name: http
+  selector:
+    app: inventory-service
+
+# =============================================================================
+# Notification Service
+# =============================================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  labels:
+    app: notification-service
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+        app.kubernetes.io/part-of: shopsphere
+    spec:
+      serviceAccountName: notification-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: notification-service
+          image: ghcr.io/your-org/notification-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8086
+              name: http
+          envFrom:
+            - configMapRef:
+                name: shopsphere-config
+            - secretRef:
+                name: shopsphere-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8086"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://$(POSTGRES_HOST):$(POSTGRES_PORT)/notification_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: POSTGRES_PASSWORD
+            - name: SPRING_RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: RABBITMQ_USER
+            - name: SPRING_RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shopsphere-secrets
+                  key: RABBITMQ_PASSWORD
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8086
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8086
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8086
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  labels:
+    app: notification-service
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8086
+      targetPort: 8086
+      name: http
+  selector:
+    app: notification-service
+
+# =============================================================================
+# Frontend (React/Nginx)
+# =============================================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+        app.kubernetes.io/part-of: shopsphere
+    spec:
+      serviceAccountName: frontend
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101       # nginx user in the official image
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: frontend
+          image: ghcr.io/your-org/frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 101
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /
+              port: 80
+            failureThreshold: 10
+            periodSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+    app.kubernetes.io/part-of: shopsphere
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
+  selector:
+    app: frontend

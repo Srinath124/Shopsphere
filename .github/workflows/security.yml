@@ -1,0 +1,58 @@
+name: Security & Vulnerability Scanning
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * 1' # Every Monday at 2 AM UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy-fs-scan:
+    name: Trivy Repo & Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy Vulnerability Scanner (FS)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy Scan Results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  iac-security-scan:
+    name: IaC Security Scan (Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov Security Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: '.'
+          framework: 'terraform,kubernetes,helm'
+          output_format: 'sarif'
+          output_file_path: 'checkov-results.sarif'
+          soft_fail: true
+
+      - name: Upload Checkov SARIF Results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'checkov-results.sarif'

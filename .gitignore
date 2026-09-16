@@ -1,0 +1,113 @@
+# Java
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# IDE
+.idea/
+*.iml
+*.iws
+.classpath
+.project
+.settings/
+.factorypath
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment
+.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+
+# Node.js / Frontend
+node_modules/
+dist/
+build/
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Docker
+*.log
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+.terraform.tfvars
+crash.log
+crash.*.log
+*.tfplan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Kubernetes secrets
+**/secrets/*.yaml
+**/secrets/*.yml
+!**/secrets/example*.yaml
+
+# Ansible
+ansible/inventory/hosts
+ansible/*.retry
+*.retry
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+log/
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# JVM crash logs
+hs_err_pid*
+replay_pid*
+
+# Spring Boot
+HELP.md
+
+# k6 results
+load-tests/results/
+
+# Generated
+generated/

@@ -1,0 +1,98 @@
+name: Continuous Deployment (CD)
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*.*.*' ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-images:
+    name: Build & Push Container Images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: auth-service
+            context: ./services/auth-service
+          - name: product-service
+            context: ./services/product-service
+          - name: cart-service
+            context: ./services/cart-service
+          - name: inventory-service
+            context: ./services/inventory-service
+          - name: order-service
+            context: ./services/order-service
+          - name: notification-service
+            context: ./services/notification-service
+          - name: frontend
+            context: ./frontend
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/${{ matrix.name }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=semver,pattern={{version}}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-kubernetes:
+    name: Deploy to Kubernetes Cluster
+    needs: [publish-images]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm v3
+        uses: azure/setup-helm@v4
+
+      - name: Configure Kubeconfig
+        if: env.KUBECONFIG_DATA != ''
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+
+      - name: Deploy Helm Chart
+        if: env.KUBECONFIG_DATA != ''
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
+          IMAGE_TAG: sha-${{ github.sha }}
+        run: |
+          helm upgrade --install shopsphere ./helm/shopsphere \
+            --namespace shopsphere-prod \
+            --create-namespace \
+            --values ./helm/shopsphere/values-prod.yaml \
+            --set global.imageTag=${IMAGE_TAG:0:11} \
+            --wait --timeout 5m
