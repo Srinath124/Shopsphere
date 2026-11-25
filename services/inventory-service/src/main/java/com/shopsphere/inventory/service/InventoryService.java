@@ -53,8 +53,14 @@ public class InventoryService {
 
     @Transactional
     public InventoryResponse createOrUpdateInventory(UUID productId, int totalQuantity) {
+        if (totalQuantity < 0) {
+            throw new IllegalArgumentException("Total quantity cannot be negative for product: " + productId);
+        }
         InventoryItem item = inventoryRepository.findByProductId(productId)
                 .map(existing -> {
+                    if (totalQuantity < existing.getReservedQuantity()) {
+                        throw new IllegalArgumentException("Total quantity cannot be less than reserved quantity for product: " + productId);
+                    }
                     existing.setTotalQuantity(totalQuantity);
                     return existing;
                 })

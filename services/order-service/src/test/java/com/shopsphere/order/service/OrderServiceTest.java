@@ -85,16 +85,16 @@ class OrderServiceTest {
         UUID id = UUID.randomUUID();
         given(orderRepository.findByIdAndUserId(id, USER_ID)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> orderService.getOrderById(USER_ID, id))
+        assertThatThrownBy(() -> orderService.getOrderById(id, USER_ID))
                 .isInstanceOf(OrderNotFoundException.class);
     }
 
     @Test
     @DisplayName("getOrdersByUser - returns empty list when user has no orders")
     void getOrdersByUser_noOrders_returnsEmptyList() {
-        given(orderRepository.findByUserId(USER_ID)).willReturn(List.of());
+        given(orderRepository.findByUserIdOrderByCreatedAtDesc(USER_ID)).willReturn(List.of());
 
-        List<OrderResponse> result = orderService.getOrdersByUser(USER_ID);
+        List<OrderResponse> result = orderService.getUserOrders(USER_ID);
 
         assertThat(result).isEmpty();
     }
@@ -111,9 +111,9 @@ class OrderServiceTest {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        given(orderRepository.findByUserId(USER_ID)).willReturn(List.of(order));
+        given(orderRepository.findByUserIdOrderByCreatedAtDesc(USER_ID)).willReturn(List.of(order));
 
-        List<OrderResponse> result = orderService.getOrdersByUser(USER_ID);
+        List<OrderResponse> result = orderService.getUserOrders(USER_ID);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getStatus()).isEqualTo(OrderStatus.CONFIRMED);
